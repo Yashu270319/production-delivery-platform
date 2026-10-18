@@ -1,4 +1,3 @@
-
 name: PDP CI
 
 on:
@@ -29,3 +28,38 @@ jobs:
 
       - name: Run automated test gate
         run: make test
+
+  container-validation:
+    name: Build and smoke-test container
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Build container image
+        run: docker build --tag pdp-api:ci --file docker/Dockerfile .
+
+      - name: Start container
+        run: docker run --detach --name pdp-api-ci --publish 8000:8000 pdp-api:ci
+
+      - name: Verify health endpoint
+        run: |
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:8000/health/live; then
+              echo
+              echo "Health endpoint passed."
+              exit 0
+            fi
+
+            echo "Attempt ${attempt}/20: API not ready yet."
+            sleep 2
+          done
+
+          echo "Health endpoint did not become ready. Container logs:"
+          docker logs pdp-api-ci
+          exit 1
+
+      - name: Clean up container
+        if: always()
+        run: docker rm --force pdp-api-ci || true
