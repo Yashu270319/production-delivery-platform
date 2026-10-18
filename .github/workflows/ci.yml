@@ -40,6 +40,16 @@ jobs:
       - name: Build container image
         run: docker build --tag pdp-api:ci --file docker/Dockerfile .
 
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: pdp-api:ci
+          format: table
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH,MEDIUM
+
       - name: Start container
         run: docker run --detach --name pdp-api-ci --publish 8000:8000 pdp-api:ci
 
