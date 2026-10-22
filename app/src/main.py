@@ -1,3 +1,4 @@
+import os
 
 from fastapi import FastAPI, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
@@ -38,7 +39,7 @@ def readiness():
 
 @app.get("/version")
 def version():
-    return {"service": "pdp-api", "version": "1.0.0"}
+    return {"service": "pdp-api", "version": os.getenv("APP_VERSION", "dev")}
 
 
 @app.get("/metrics")

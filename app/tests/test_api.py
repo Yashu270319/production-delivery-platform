@@ -29,11 +29,13 @@ def test_readiness_endpoint():
     assert response.json()["status"] == "ready"
 
 
-def test_version_endpoint():
+def test_version_endpoint(monkeypatch):
+    monkeypatch.setenv("APP_VERSION", "9.8.7")
+
     response = client.get("/version")
 
     assert response.status_code == 200
-    assert response.json()["version"] == "1.0.0"
+    assert response.json() == {"service": "pdp-api", "version": "9.8.7"}
 
 
 def test_metrics_endpoint_exposes_prometheus_format():
