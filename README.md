@@ -4,9 +4,9 @@ A local, resource-conscious platform for learning and demonstrating production-o
 
 ## Current Status
 
-**Milestone 1: Containerized API — Complete**
+**Milestones 1–3: Containerized API, CI gates, and controlled local releases — Implemented**
 
-The project currently provides a FastAPI service packaged as a Docker image and run through Docker Compose.
+The project provides a tested FastAPI service, versioned container images, CI quality and security checks, a local image registry, and an Nginx-based release switch with rollback verification.
 
 ## Architecture
 
@@ -89,12 +89,12 @@ docker compose -f compose/compose.yaml down
 
 ## Roadmap
 
-1. Establish automated test gates that reject failing changes.
-2. Add versioned build artifacts and container security scanning.
-3. Implement controlled releases with health checks and rollback.
-4. Add metrics dashboards, alerting, and operational runbooks.
-5. Introduce local Kubernetes deployment and rollout exercises.
-6. Document service-level indicators, objectives, and recovery procedures.
+1. Strengthen release health checks and rollback validation.
+2. Add metrics dashboards and alerting.
+3. Introduce local Kubernetes deployment and rollout exercises.
+4. Document service-level indicators, objectives, and recovery procedures.
+
+See [docs/RELEASE-AND-ROLLBACK.md](docs/RELEASE-AND-ROLLBACK.md) for the implemented release and rollback workflow.
 
 ## Project Scope
 
