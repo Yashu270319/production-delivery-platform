@@ -3,6 +3,8 @@ from fastapi.testclient import TestClient
 
 from app.src.main import app
 
+import httpx
+
 client = TestClient(app)
 
 
@@ -21,12 +23,16 @@ def test_liveness_endpoint():
     assert response.status_code == 200
     assert response.json()["status"] == "alive"
 
+def test_readiness_fails_when_dependency_is_not_configured(monkeypatch):
+    monkeypatch.delenv("DEPENDENCY_URL", raising=False)
 
-def test_readiness_endpoint():
     response = client.get("/health/ready")
 
-    assert response.status_code == 200
-    assert response.json()["status"] == "ready"
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "dependency": "not_configured",
+    }
 
 
 def test_version_endpoint(monkeypatch):
@@ -51,3 +57,50 @@ def test_dependency_check_reports_unconfigured_dependency():
 
     assert response.status_code == 503
     assert response.json()["status"] == "not_configured"
+
+
+def test_readiness_succeeds_when_dependency_is_healthy(monkeypatch):
+    monkeypatch.setenv("DEPENDENCY_URL", "http://dependency.test/health")
+
+    def mock_get(url, timeout):
+        return httpx.Response(200, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr("app.src.main.httpx.get", mock_get)
+
+    response = client.get("/health/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+
+
+def test_readiness_fails_when_dependency_is_unavailable(monkeypatch):
+    monkeypatch.setenv("DEPENDENCY_URL", "http://dependency.test/health")
+
+    def mock_get(url, timeout):
+        request = httpx.Request("GET", url)
+        return httpx.Response(503, request=request)
+
+    monkeypatch.setattr("app.src.main.httpx.get", mock_get)
+
+    response = client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "dependency": "unavailable",
+    }
+
+
+def test_liveness_remains_healthy_when_dependency_is_unavailable(monkeypatch):
+    monkeypatch.setenv("DEPENDENCY_URL", "http://dependency.test/health")
+
+    def mock_get(url, timeout):
+        request = httpx.Request("GET", url)
+        return httpx.Response(503, request=request)
+
+    monkeypatch.setattr("app.src.main.httpx.get", mock_get)
+
+    response = client.get("/health/live")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "alive"}
