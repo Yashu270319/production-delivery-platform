@@ -50,29 +50,54 @@ jobs:
           vuln-type: os,library
           severity: CRITICAL,HIGH,MEDIUM
 
-      - name: Start container
-        run: docker run --detach --name pdp-api-ci --publish 8000:8000 pdp-api:ci
+
+      - name: Create CI network
+        run: docker network create pdp-ci-net
+
+      - name: Start dependency health server
+        run: |
+          docker run --detach \
+            --name pdp-dependency-ci \
+            --network pdp-ci-net \
+            --volume "$PWD/dependency:/dependency:ro" \
+            --workdir /dependency \
+            python:3.12-slim \
+            python health_server.py
+
+      - name: Start API container
+        run: |
+          docker run --detach \
+            --name pdp-api-ci \
+            --network pdp-ci-net \
+            --publish 8000:8000 \
+            --env APP_VERSION=1.0.0 \
+            --env DEPENDENCY_URL=http://pdp-dependency-ci:8081/health \
+            pdp-api:ci
 
       - name: Verify health endpoint
         run: |
           for attempt in $(seq 1 20); do
             if curl --fail --silent http://127.0.0.1:8000/health/live; then
               echo
-              echo "Health endpoint passed."
-              exit 0
+              echo "Liveness endpoint passed."
+              break
             fi
 
             echo "Attempt ${attempt}/20: API not ready yet."
             sleep 2
           done
 
-          echo "Health endpoint did not become ready. Container logs:"
-          docker logs pdp-api-ci
-          exit 1
+          if ! curl --fail --silent http://127.0.0.1:8000/health/live; then
+            echo "Liveness endpoint failed. Container logs:"
+            docker logs pdp-api-ci
+            exit 1
+          fi
 
       - name: Validate deployment
         run: ./scripts/validate-deployment.sh http://127.0.0.1:8000 1.0.0
 
-      - name: Clean up container
+      - name: Clean up containers and network
         if: always()
-        run: docker rm --force pdp-api-ci || true
+        run: |
+          docker rm --force pdp-api-ci pdp-dependency-ci || true
+          docker network rm pdp-ci-net || true
