@@ -12,6 +12,10 @@ FROM python:3.12-slim AS runtime
 
 ARG APP_VERSION=1.0.0
 
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     APP_VERSION=${APP_VERSION} \
